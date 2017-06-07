@@ -92,12 +92,9 @@
           alpha = erf((len-xy.x)/SQRT2/sigma) + erf(xy.x/SQRT2/sigma);
           alpha *= exp(-xy.y*xy.y/(2.0*sigma*sigma))/2.0/len*uSize;
         }
-        alpha = 1.0;
-        float afterglow = smoothstep(0.0, 0.33, uvl.w/2048.0);
+        float afterglow = smoothstep(0.0, 0.66, uvl.w * 8.0);
         alpha *= afterglow * uIntensity;
-        // gl_FragColor = vec4(vec3(uColor), uColor.a * alpha);
-        gl_FragColor = vec4(uvl.x, uvl.w, uvl.y, 1.0);
-        // gl_FragColor = vec4(0.3, 1.0, 0.3, 1.0);
+        gl_FragColor = vec4(vec3(uColor), uColor.a * alpha);
       }
     </script>
 
@@ -110,7 +107,7 @@
       var gl = canvas.getContext("webgl", {
         antialias: true,
         preserveDrawingBuffer: true,
-        premultipliedAlpha: true
+        premultipliedAlpha: false
       });
       if (!gl) {
         console.log('butts');
@@ -180,13 +177,16 @@
       gl.enableVertexAttribArray(attribs.aEnd);
       gl.enableVertexAttribArray(attribs.aIdx);
 
-      var rot = 0;
-      setInterval(drawScene, 16);
-
       gl.uniform1f(uniforms.uSize, 0.012);
       gl.uniform1f(uniforms.uInvert, 1.0);
-      gl.uniform1f(uniforms.uIntensity, 1.0);
+      gl.uniform1f(uniforms.uIntensity, 25.0);
       gl.uniform4f(uniforms.uColor, 0.1, 1.0, 0.1, 1.0);
+
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+
+      var rot = 0;
+      setInterval(drawScene, 16);
 
       function drawScene() {
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -199,7 +199,7 @@
 
         var translationMatrix = m3.translation(-0.125, -0.125);
         var rotationMatrix = m3.rotation(rot);
-        var scalingMatrix = m3.scaling(1.25, 1.25);
+        var scalingMatrix = m3.scaling(1.0, 1.0);
         var matrix = m3.multiply(translationMatrix, rotationMatrix);
         matrix = m3.multiply(matrix, scalingMatrix);
         gl.uniformMatrix3fv(uniforms.uMatrix, false, matrix);
