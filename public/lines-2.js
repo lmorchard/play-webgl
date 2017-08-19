@@ -9,8 +9,10 @@ uniform float uCameraZoom;
 uniform float uCameraRotation;
 uniform vec2 uCameraOrigin;
 
-attribute vec2 aStart, aEnd, aPos;
-attribute float aIdx, aScale, aRotation, aDeltaRotation;
+attribute vec2 aStart, aEnd;
+attribute float aIdx;
+attribute vec4 aTransform;
+attribute vec4 aDeltaTransform;
 
 varying vec4 uvl;
 varying float vLen;
@@ -26,12 +28,24 @@ void main () {
 
   float dr = 0.001;
   float localRotation = dr * uTime;
-  c = cos(localRotation);
-  s = sin(localRotation);
-  mat3 mRotation = mat3(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
 
-  mat3 mPosition = mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, aPos.x, aPos.y, 1.0);
-  mat3 mScale = mat3(aScale, 0.0, 0.0, 0.0, aScale, 0.0, 0.0, 0.0, 1.0);
+  c = cos(aTransform.w + (aDeltaTransform.w * uTime));
+  s = sin(aTransform.w + (aDeltaTransform.w * uTime));
+  mat3 mRotation = mat3(
+    c, -s, 0.0,
+    s, c, 0.0,
+    0.0, 0.0, 1.0
+  );
+  mat3 mPosition = mat3(
+    1.0, 0.0, 0.0,
+    0.0, 1.0, 0.0,
+    aTransform.x + (aDeltaTransform.x * uTime), aTransform.y + (aDeltaTransform.y * uTime), 1.0
+  );
+  mat3 mScale = mat3(
+    aTransform.z + (aDeltaTransform.z * uTime), 0.0, 0.0,
+    0.0, aTransform.z + (aDeltaTransform.z * uTime), 0.0,
+    0.0, 0.0, 1.0
+  );
 
   mat3 mAll = mCameraZoom * mCameraOrigin * mCameraRotation * mPosition * mScale * mRotation;
   vec2 tStart = (mAll * vec3(aStart, 1)).xy;
@@ -164,51 +178,9 @@ var scene = [
   { shape: shapes.box, position: [ 1.0, -1.0], scale: 0.025 },
   { shape: shapes.box, position: [-1.0,  1.0], scale: 0.025 },
   { shape: shapes.box, position: [ 1.0,  1.0], scale: 0.025 },
-  { shape: shapes.hero, position: [0, 0], scale: 0.25 },
-  { shape: shapes.enemy, position: [0.5, 0.5], scale: 0.25 }
+  { shape: shapes.hero, position: [0, 0], scale: 0.25, deltaRotation: 0.002 },
+  { shape: shapes.enemy, position: [0.5, 0.5], deltaPosition: [-0.0002, -0.0002], scale: 0.25, deltaRotation: -0.001 }
 ];
-
-var attribsSpec = [
-  ['aIdx', 1],
-  ['aStart', 2],
-  ['aEnd', 2],
-  ['aPos', 2],
-  ['aScale', 1],
-  //['aRotation', 1],
-  //['aDeltaRotation', 1]
-];
-
-var dataCount = 0;
-var data = [];
-scene.forEach(({shape, position, scale, rotation=0.0, deltaRotation=0.0}) => {
-
-  var lines = shape.slice(2).reduce(
-    (a, p) => a.concat([[a[a.length-1][1], p]]),
-    [[shape[0], shape[1]]]
-  );
-
-  var toAdd = lines.reduce((acc, line) => {
-    var sx = line[0][0];
-    var sy = line[0][1];
-    var ex = line[1][0];
-    var ey = line[1][1];
-    dataCount += 4;
-    return acc.concat([
-      0, sx, sy, ex, ey, position[0], position[1], scale, //rotation, //deltaRotation,
-      1, sx, sy, ex, ey, position[0], position[1], scale, //rotation, //deltaRotation,
-      2, sx, sy, ex, ey, position[0], position[1], scale, //rotation, //deltaRotation,
-      3, sx, sy, ex, ey, position[0], position[1], scale, //rotation, //deltaRotation,
-    ]);
-  }, []);
-
-  // Add degenerate triangles between shapes to disconnect them.
-  dataCount += 2;
-  const firstV = toAdd.slice(0, 8);
-  const lastV = toAdd.slice(toAdd.length -8, toAdd.length);
-
-  data = data.concat(firstV.concat(toAdd, lastV));
-});
-data = new Float32Array(data);
 
 var canvas = document.getElementById("c");
 resizeCanvasToDisplaySize(canvas);
@@ -239,47 +211,75 @@ setUniforms(uniforms, {
 
 var vbo = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+
+var attribsSpec = [
+  ['aIdx', 1],
+  ['aStart', 2],
+  ['aEnd', 2],
+  ['aTransform', 4],
+  ['aDeltaTransform', 4]
+];
 
 var attribs = {};
 var pos = 0;
-var total = attribsSpec.reduce((sum, [name, size]) => sum + size, 0);
+var indexSize = attribsSpec.reduce((sum, [name, size]) => sum + size, 0);
 attribsSpec.forEach(([name, size]) => {
   const attrib = attribs[name] = gl.getAttribLocation(program, name);
-  gl.vertexAttribPointer(attrib, size, gl.FLOAT, false, total * 4, pos * 4);
+  gl.vertexAttribPointer(attrib, size, gl.FLOAT, false, indexSize * 4, pos * 4);
   gl.enableVertexAttribArray(attrib)
   pos += size;
 });
 
-var rot = 0;
+var data = [];
+var dataCount = 0;
+scene.forEach(({
+  shape, position, scale, rotation,
+  deltaPosition=[], deltaScale, deltaRotation
+}) => {
+  var toAdd = shape.slice(2).reduce(
+    (a, p) => a.concat([[a[a.length-1][1], p]]),
+    [[shape[0], shape[1]]]
+  ).reduce((acc, line) => {
+    var sx = line[0][0];
+    var sy = line[0][1];
+    var ex = line[1][0];
+    var ey = line[1][1];
+    dataCount += 4;
+    var common = [
+      sx, sy, ex, ey,
+      position[0], position[1], scale || 0, rotation || 0,
+      deltaPosition[0] || 0, deltaPosition[1] || 0, deltaScale || 0, deltaRotation || 0
+    ];
+    return acc.concat(...[0, 1, 2, 3].map(idx => [idx].concat(common)));
+  }, []);
 
-var lastTick = Date.now();
+  // Add degenerate triangles between shapes to disconnect them.
+  dataCount += 2;
+  const firstV = toAdd.slice(0, indexSize);
+  const lastV = toAdd.slice(toAdd.length - indexSize, toAdd.length);
+
+  data = data.concat(firstV.concat(toAdd, lastV));
+});
+data = new Float32Array(data);
+
+gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+
+var lastTick;
 var currTime = 0;
-var now;
-setInterval(() => {
-  now = Date.now();
-  currTime += now - lastTick;
-  lastTick = now;
+function drawTick(ts) {
+  if (!lastTick) lastTick = ts;
+  currTime += ts - lastTick;
+  lastTick = ts;
   gl.uniform1f(uniforms.uTime, currTime);
-}, 16);
 
-setInterval(drawScene, 16);
-
-function drawScene() {
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
   gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
   gl.clearColor(0, 0, 0, 1.0);
-
-  rot = rot + (Math.PI * 0.004);
-  if (rot > Math.PI * 2) { rot = 0; }
-
-  // gl.uniform1f(uniforms.uCameraRotation, rot);
-  // gl.uniform2f(uniforms.uCameraOrigin, Math.cos(rot) / 2, Math.sin(rot) / 2);
-  // gl.uniform1f(uniforms.uCameraZoom, Math.abs(Math.cos(rot)));
-
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, dataCount);
-}
+
+  window.requestAnimationFrame(drawTick);
+};
+window.requestAnimationFrame(drawTick);
 
 function getElementText(id) {
   return document.getElementById(id).text;
@@ -294,7 +294,6 @@ function createShader(gl, type, source) {
     return shader;
   }
 
-  console.log(gl.getShaderInfoLog(shader));
   gl.deleteShader(shader);
 }
 
