@@ -79,6 +79,8 @@
       }
       void main (void)
       {
+        gl_FragColor = vec4(1.0, 0.3, 0.3, 1.0);
+        /*
         float len = uvl.z;
         vec2 xy = vec2((len/2.0+uSize)*uvl.x+len/2.0, uSize*uvl.y);
         float alpha;
@@ -95,6 +97,7 @@
         float afterglow = smoothstep(0.0, 0.66, uvl.w * 8.0);
         alpha *= afterglow * uIntensity;
         gl_FragColor = vec4(vec3(uColor), uColor.a * alpha);
+        */
       }
     </script>
 
