@@ -3,9 +3,10 @@ const shaderVertex = `
 precision highp float;
 #define EPS 1E-6
 
-uniform float uSize;
-uniform float uRotation;
-uniform vec2 uOrigin;
+uniform float uLineWidth;
+uniform float uCameraZoom;
+uniform float uCameraRotation;
+uniform vec2 uCameraOrigin;
 
 attribute vec2 aStart, aEnd, aPos;
 attribute float aIdx, aScale;
@@ -18,18 +19,22 @@ void main () {
   mat3 mPosition = mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, aPos.x, aPos.y, 1.0);
   mat3 mScale = mat3(aScale, 0.0, 0.0, 0.0, aScale, 0.0, 0.0, 0.0, 1.0);
 
-  float c = cos(uRotation);
-  float s = sin(uRotation);
-  mat3 mRotation = mat3(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
-  mat3 mOrigin = mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, uOrigin.x, uOrigin.y, 1.0);
+  float c = cos(uCameraRotation);
+  float s = sin(uCameraRotation);
+  mat3 mCameraRotation = mat3(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
+  mat3 mCameraOrigin = mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, uCameraOrigin.x, uCameraOrigin.y, 1.0);
+  mat3 mCameraZoom = mat3(uCameraZoom, 0.0, 0.0, 0.0, uCameraZoom, 0.0, 0.0, 0.0, 1.0);
 
-  vec2 tStart = (mOrigin * mPosition * mRotation * mScale * vec3(aStart, 1)).xy;
-  vec2 tEnd = (mOrigin * mPosition * mRotation * mScale * vec3(aEnd, 1)).xy;
+  mat3 mAll = mCameraZoom * mCameraOrigin * mCameraRotation * mPosition * mScale;
+  vec2 tStart = (mAll * vec3(aStart, 1)).xy;
+  vec2 tEnd = (mAll * vec3(aEnd, 1)).xy;
 
   float tang;
   vec2 current;
-  float idx = mod(aIdx,4.0);
-  if (idx >= 2.0) {
+  float idx = aIdx;
+  if (idx == -1.0) {
+    tang = 0.0;
+  } else if (idx >= 2.0) {
     current = tEnd;
     tang = 1.0;
   } else {
@@ -50,7 +55,7 @@ void main () {
     dir = vec2(1.0, 0.0);
   }
   vec2 norm = vec2(-dir.y, dir.x);
-  gl_Position = vec4((current+(tang*dir+norm*side)*uSize),0.0,1.0);
+  gl_Position = vec4((current+(tang*dir+norm*side)*uLineWidth),0.0,1.0);
 }
 `;
 
@@ -65,7 +70,7 @@ precision highp float;
 #define TAU 6.283185307179586
 #define TAUR 2.5066282746310002
 #define SQRT2 1.4142135623730951
-uniform float uSize;
+uniform float uLineWidth;
 uniform float uIntensity;
 uniform vec4 uColor;
 varying vec4 uvl;
@@ -82,17 +87,17 @@ float erf(float x) {
 void main (void)
 {
   float len = uvl.z;
-  vec2 xy = vec2((len/2.0+uSize)*uvl.x+len/2.0, uSize*uvl.y);
+  vec2 xy = vec2((len/2.0+uLineWidth)*uvl.x+len/2.0, uLineWidth*uvl.y);
   float alpha;
 
-  float sigma = uSize/4.0;
+  float sigma = uLineWidth/4.0;
   if (len < EPS) {
     // If the beam segment is too short, just calculate intensity at the position.
-    alpha = exp(-pow(length(xy),2.0)/(2.0*sigma*sigma))/2.0/sqrt(uSize);
+    alpha = exp(-pow(length(xy),2.0)/(2.0*sigma*sigma))/2.0/sqrt(uLineWidth);
   } else {
     // Otherwise, use analytical integral for accumulated intensity.
     alpha = erf((len-xy.x)/SQRT2/sigma) + erf(xy.x/SQRT2/sigma);
-    alpha *= exp(-xy.y*xy.y/(2.0*sigma*sigma))/2.0/len*uSize;
+    alpha *= exp(-xy.y*xy.y/(2.0*sigma*sigma))/2.0/len*uLineWidth;
   }
   alpha = 1.0;
   float afterglow = smoothstep(0.0, 0.33, uvl.w/2048.0);
@@ -116,23 +121,76 @@ function setUniforms(uniforms, data) {
       .call(gl, uniforms[key], ...data[key]));
 }
 
-var points = [
-  [-0.75, -0.75],
-  [-0.5, 0.0],
-  [-0.25, 0.5],
-  [0.0, 0.25],
-  [0.25, 0.5],
-  [0.5, 0.0],
-  [0.75, -0.75],
-  [0.25, -0.25],
-  [-0.25, -0.25],
-  [-0.75, -0.75],
+var shapes = {
+  box: [
+    [-0.25, -0.25],
+    [0.25, -0.25],
+    [0.25, 0.25],
+    [-0.25, 0.25],
+    [-0.25, -0.25]
+  ],
+  hero: [
+    [-0.75, -0.75],
+    [-0.5, 0.0],
+    [-0.25, 0.5],
+    [0.0, 0.25],
+    [0.25, 0.5],
+    [0.5, 0.0],
+    [0.75, -0.75],
+    [0.25, -0.25],
+    [-0.25, -0.25],
+    [-0.75, -0.75],
+  ],
+  enemy: [
+    [0.0, 1],
+    [-0.75, -1],
+    [0.0, 0.0],
+    [0.75, -1],
+    [0.0, 1]
+  ]
+};
+
+var scene = [
+  { shape: shapes.box, position: [0, 0], scale: 0.025 },
+  { shape: shapes.box, position: [-0.75, -0.75], scale: 0.025 },
+  { shape: shapes.box, position: [ 0.75, -0.75], scale: 0.025 },
+  { shape: shapes.box, position: [-0.75,  0.75], scale: 0.025 },
+  { shape: shapes.box, position: [ 0.75,  0.75], scale: 0.025 },
+  { shape: shapes.hero, position: [0, 0], scale: 0.25 },
+  { shape: shapes.enemy, position: [0.5, 0.5], scale: 0.25 }
 ];
 
-var lines = points.slice(2).reduce(
-  (a, p) => a.concat([[a[a.length-1][1], p]]),
-  [[points[0], points[1]]]
-);
+var dataCount = 0;
+var data = [];
+scene.forEach(({shape, position, scale}) => {
+
+  var lines = shape.slice(2).reduce(
+    (a, p) => a.concat([[a[a.length-1][1], p]]),
+    [[shape[0], shape[1]]]
+  );
+
+  var toAdd = lines.reduce((acc, line) => {
+    var sx = line[0][0];
+    var sy = line[0][1];
+    var ex = line[1][0];
+    var ey = line[1][1];
+    dataCount += 4;
+    return acc.concat([
+      0, sx, sy, ex, ey, position[0], position[1], scale,
+      1, sx, sy, ex, ey, position[0], position[1], scale,
+      2, sx, sy, ex, ey, position[0], position[1], scale,
+      3, sx, sy, ex, ey, position[0], position[1], scale,
+    ]);
+  }, []);
+
+  // Add degenerate triangles between shapes to disconnect them.
+  dataCount += 2;
+  const firstV = toAdd.slice(0, 8);
+  const lastV = toAdd.slice(toAdd.length -8, toAdd.length);
+
+  data = data.concat(firstV.concat(toAdd, lastV));
+});
+data = new Float32Array(data);
 
 var canvas = document.getElementById("c");
 resizeCanvasToDisplaySize(canvas);
@@ -150,18 +208,16 @@ var program = createProgram(gl,
 gl.useProgram(program);
 
 var uniforms = zip([
-  'uColor', 'uIntensity', 'uSize', 'uRotation', 'uOrigin'
+  'uColor', 'uIntensity', 'uLineWidth', 'uCameraZoom', 'uCameraRotation', 'uCameraOrigin'
 ], name => gl.getUniformLocation(program, name));
 
 setUniforms(uniforms, {
-  uOrigin: [0, 0],
-  uSize: [0.012],
+  uCameraZoom: [0.5],
+  uCameraOrigin: [0, 0],
+  uLineWidth: [0.004],
   uIntensity: [1.0],
   uColor: [0.1, 1.0, 0.1, 1.0],
 });
-
-var position = [0, 0];
-var scale = 0.5;
 
 var attribsSpec = [
   ['aIdx', 1],
@@ -170,20 +226,6 @@ var attribsSpec = [
   ['aPos', 2],
   ['aScale', 1]
 ];
-
-var DATA_ITEM_LEN = 4;
-var data = new Float32Array(lines.reduce((acc, line) => {
-  var sx = line[0][0];
-  var sy = line[0][1];
-  var ex = line[1][0];
-  var ey = line[1][1];
-  return acc.concat([
-    0, sx, sy, ex, ey, position[0], position[1], scale,
-    1, sx, sy, ex, ey, position[0], position[1], scale,
-    2, sx, sy, ex, ey, position[0], position[1], scale,
-    3, sx, sy, ex, ey, position[0], position[1], scale,
-  ]);
-}, []));
 
 var vbo = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -208,12 +250,13 @@ function drawScene() {
   gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
   gl.clearColor(0, 0, 0, 1.0);
 
-  rot = rot + (Math.PI * 0.008);
+  rot = rot + (Math.PI * 0.004);
   if (rot > Math.PI * 2) { rot = 0; }
 
-  gl.uniform1f(uniforms.uRotation, rot);
-  // gl.uniform2f(uniforms.uOrigin, Math.cos(rot) / 2, Math.sin(rot) / 2);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, lines.length * DATA_ITEM_LEN);
+  gl.uniform1f(uniforms.uCameraRotation, rot);
+  gl.uniform2f(uniforms.uCameraOrigin, Math.cos(rot) / 2, Math.sin(rot) / 2);
+  gl.uniform1f(uniforms.uCameraZoom, Math.abs(Math.cos(rot)));
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, dataCount);
 }
 
 function getElementText(id) {
