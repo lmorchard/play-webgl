@@ -3,29 +3,37 @@ const shaderVertex = `
 precision highp float;
 #define EPS 1E-6
 
+uniform float uTime;
 uniform float uLineWidth;
 uniform float uCameraZoom;
 uniform float uCameraRotation;
 uniform vec2 uCameraOrigin;
 
 attribute vec2 aStart, aEnd, aPos;
-attribute float aIdx, aScale;
+attribute float aIdx, aScale, aRotation, aDeltaRotation;
 
 varying vec4 uvl;
 varying float vLen;
 
 void main () {
-  mat3 mIdentity = mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
-  mat3 mPosition = mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, aPos.x, aPos.y, 1.0);
-  mat3 mScale = mat3(aScale, 0.0, 0.0, 0.0, aScale, 0.0, 0.0, 0.0, 1.0);
+  float c, s;
 
-  float c = cos(uCameraRotation);
-  float s = sin(uCameraRotation);
+  c = cos(uCameraRotation);
+  s = sin(uCameraRotation);
   mat3 mCameraRotation = mat3(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
   mat3 mCameraOrigin = mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, uCameraOrigin.x, uCameraOrigin.y, 1.0);
   mat3 mCameraZoom = mat3(uCameraZoom, 0.0, 0.0, 0.0, uCameraZoom, 0.0, 0.0, 0.0, 1.0);
 
-  mat3 mAll = mCameraZoom * mCameraOrigin * mCameraRotation * mPosition * mScale;
+  float dr = 0.001;
+  float localRotation = dr * uTime;
+  c = cos(localRotation);
+  s = sin(localRotation);
+  mat3 mRotation = mat3(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
+
+  mat3 mPosition = mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, aPos.x, aPos.y, 1.0);
+  mat3 mScale = mat3(aScale, 0.0, 0.0, 0.0, aScale, 0.0, 0.0, 0.0, 1.0);
+
+  mat3 mAll = mCameraZoom * mCameraOrigin * mCameraRotation * mPosition * mScale * mRotation;
   vec2 tStart = (mAll * vec3(aStart, 1)).xy;
   vec2 tEnd = (mAll * vec3(aEnd, 1)).xy;
 
@@ -152,17 +160,27 @@ var shapes = {
 
 var scene = [
   { shape: shapes.box, position: [0, 0], scale: 0.025 },
-  { shape: shapes.box, position: [-0.75, -0.75], scale: 0.025 },
-  { shape: shapes.box, position: [ 0.75, -0.75], scale: 0.025 },
-  { shape: shapes.box, position: [-0.75,  0.75], scale: 0.025 },
-  { shape: shapes.box, position: [ 0.75,  0.75], scale: 0.025 },
+  { shape: shapes.box, position: [-1.0, -1.0], scale: 0.025 },
+  { shape: shapes.box, position: [ 1.0, -1.0], scale: 0.025 },
+  { shape: shapes.box, position: [-1.0,  1.0], scale: 0.025 },
+  { shape: shapes.box, position: [ 1.0,  1.0], scale: 0.025 },
   { shape: shapes.hero, position: [0, 0], scale: 0.25 },
   { shape: shapes.enemy, position: [0.5, 0.5], scale: 0.25 }
 ];
 
+var attribsSpec = [
+  ['aIdx', 1],
+  ['aStart', 2],
+  ['aEnd', 2],
+  ['aPos', 2],
+  ['aScale', 1],
+  //['aRotation', 1],
+  //['aDeltaRotation', 1]
+];
+
 var dataCount = 0;
 var data = [];
-scene.forEach(({shape, position, scale}) => {
+scene.forEach(({shape, position, scale, rotation=0.0, deltaRotation=0.0}) => {
 
   var lines = shape.slice(2).reduce(
     (a, p) => a.concat([[a[a.length-1][1], p]]),
@@ -176,10 +194,10 @@ scene.forEach(({shape, position, scale}) => {
     var ey = line[1][1];
     dataCount += 4;
     return acc.concat([
-      0, sx, sy, ex, ey, position[0], position[1], scale,
-      1, sx, sy, ex, ey, position[0], position[1], scale,
-      2, sx, sy, ex, ey, position[0], position[1], scale,
-      3, sx, sy, ex, ey, position[0], position[1], scale,
+      0, sx, sy, ex, ey, position[0], position[1], scale, //rotation, //deltaRotation,
+      1, sx, sy, ex, ey, position[0], position[1], scale, //rotation, //deltaRotation,
+      2, sx, sy, ex, ey, position[0], position[1], scale, //rotation, //deltaRotation,
+      3, sx, sy, ex, ey, position[0], position[1], scale, //rotation, //deltaRotation,
     ]);
   }, []);
 
@@ -208,24 +226,16 @@ var program = createProgram(gl,
 gl.useProgram(program);
 
 var uniforms = zip([
-  'uColor', 'uIntensity', 'uLineWidth', 'uCameraZoom', 'uCameraRotation', 'uCameraOrigin'
+  'uTime', 'uColor', 'uIntensity', 'uLineWidth', 'uCameraZoom', 'uCameraRotation', 'uCameraOrigin'
 ], name => gl.getUniformLocation(program, name));
 
 setUniforms(uniforms, {
-  uCameraZoom: [0.5],
+  uCameraZoom: [0.75],
   uCameraOrigin: [0, 0],
   uLineWidth: [0.004],
   uIntensity: [1.0],
   uColor: [0.1, 1.0, 0.1, 1.0],
 });
-
-var attribsSpec = [
-  ['aIdx', 1],
-  ['aStart', 2],
-  ['aEnd', 2],
-  ['aPos', 2],
-  ['aScale', 1]
-];
 
 var vbo = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -242,6 +252,17 @@ attribsSpec.forEach(([name, size]) => {
 });
 
 var rot = 0;
+
+var lastTick = Date.now();
+var currTime = 0;
+var now;
+setInterval(() => {
+  now = Date.now();
+  currTime += now - lastTick;
+  lastTick = now;
+  gl.uniform1f(uniforms.uTime, currTime);
+}, 16);
+
 setInterval(drawScene, 16);
 
 function drawScene() {
@@ -253,9 +274,10 @@ function drawScene() {
   rot = rot + (Math.PI * 0.004);
   if (rot > Math.PI * 2) { rot = 0; }
 
-  gl.uniform1f(uniforms.uCameraRotation, rot);
-  gl.uniform2f(uniforms.uCameraOrigin, Math.cos(rot) / 2, Math.sin(rot) / 2);
-  gl.uniform1f(uniforms.uCameraZoom, Math.abs(Math.cos(rot)));
+  // gl.uniform1f(uniforms.uCameraRotation, rot);
+  // gl.uniform2f(uniforms.uCameraOrigin, Math.cos(rot) / 2, Math.sin(rot) / 2);
+  // gl.uniform1f(uniforms.uCameraZoom, Math.abs(Math.cos(rot)));
+
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, dataCount);
 }
 
