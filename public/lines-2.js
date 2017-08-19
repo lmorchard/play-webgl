@@ -236,28 +236,30 @@ scene.forEach(({
   shape, position, scale, rotation,
   deltaPosition=[], deltaScale, deltaRotation
 }) => {
-  var toAdd = shape.slice(2).reduce(
-    (a, p) => a.concat([[a[a.length-1][1], p]]),
-    [[shape[0], shape[1]]]
-  ).reduce((acc, line) => {
-    var sx = line[0][0];
-    var sy = line[0][1];
-    var ex = line[1][0];
-    var ey = line[1][1];
-    dataCount += 4;
-    var common = [
-      sx, sy, ex, ey,
-      position[0], position[1], scale || 0, rotation || 0,
-      deltaPosition[0] || 0, deltaPosition[1] || 0, deltaScale || 0, deltaRotation || 0
-    ];
-    return acc.concat(...[0, 1, 2, 3].map(idx => [idx].concat(common)));
-  }, []);
+  var toAdd = shape
+    .slice(2)
+    .reduce(
+      (a, p) => a.concat([[a[a.length-1][1], p]]),
+      [[shape[0], shape[1]]]
+    )
+    .reduce((acc, line) => {
+      var sx = line[0][0];
+      var sy = line[0][1];
+      var ex = line[1][0];
+      var ey = line[1][1];
+      dataCount += 4;
+      var common = [
+        sx, sy, ex, ey,
+        position[0], position[1], scale || 0, rotation || 0,
+        deltaPosition[0] || 0, deltaPosition[1] || 0, deltaScale || 0, deltaRotation || 0
+      ];
+      return acc.concat(...[0, 1, 2, 3].map(idx => [idx].concat(common)));
+    }, []);
 
   // Add degenerate triangles between shapes to disconnect them.
   dataCount += 2;
   const firstV = toAdd.slice(0, indexSize);
   const lastV = toAdd.slice(toAdd.length - indexSize, toAdd.length);
-
   data = data.concat(firstV.concat(toAdd, lastV));
 });
 data = new Float32Array(data);
