@@ -6,6 +6,28 @@ var shapes = {
     [-0.25, 0.25],
     [-0.25, -0.25]
   ],
+  star: [
+    [0, 1],
+    [0.25, 0.25],
+    [1, 0],
+    [0.25, -0.25],
+    [0, -1],
+    [-0.25, -0.25],
+    [-1, 0],
+    [-0.25, 0.25],
+    [0, 1]
+  ],
+  plus: [
+    [0, 1],
+    [0.025, 0.025],
+    [1, 0],
+    [0.025, -0.025],
+    [0, -1],
+    [-0.025, -0.025],
+    [-1, 0],
+    [-0.025, 0.025],
+    [0, 1]
+  ],
   hero: [
     [-0.75, -0.75],
     [-0.5, 0.0],
@@ -27,15 +49,31 @@ var shapes = {
   ]
 };
 
+console.time('scene');
 var scene = [
-  { shape: shapes.box, position: [0, 0], scale: 0.025 },
-  { shape: shapes.box, position: [-1.0, -1.0], scale: 0.025 },
-  { shape: shapes.box, position: [ 1.0, -1.0], scale: 0.025 },
-  { shape: shapes.box, position: [-1.0,  1.0], scale: 0.025 },
-  { shape: shapes.box, position: [ 1.0,  1.0], scale: 0.025 },
-  { shape: shapes.hero, position: [0, 0], scale: 0.25, deltaRotation: 0.002 },
-  { shape: shapes.enemy, position: [0.5, 0.5], deltaPosition: [-0.0002, -0.0002], scale: 0.25, deltaRotation: -0.001 }
+  { shape: shapes.plus, position: [0, 0], scale: 0.05 },
+  { shape: shapes.plus, position: [-0.5, -0.5], scale: 0.05 },
+  { shape: shapes.plus, position: [ 0.5, -0.5], scale: 0.05 },
+  { shape: shapes.plus, position: [-0.5,  0.5], scale: 0.05 },
+  { shape: shapes.plus, position: [ 0.5,  0.5], scale: 0.05 },
+  { shape: shapes.plus, position: [-1.0, -1.0], scale: 0.05 },
+  { shape: shapes.plus, position: [ 1.0, -1.0], scale: 0.05 },
+  { shape: shapes.plus, position: [-1.0,  1.0], scale: 0.05 },
+  { shape: shapes.plus, position: [ 1.0,  1.0], scale: 0.05 },
+  { shape: shapes.hero, position: [0, 0], scale: 0.125, deltaRotation: 0.002 },
+  { shape: shapes.enemy, position: [0.5, 0.5], scale: 0.125, deltaRotation: -0.001 }
 ];
+for (var i=0; i<2000; i++) {
+  scene.push({
+    shape: shapes.star,
+    scale: 0.05,
+    position: [1 - Math.random() * 2, 1 - Math.random() * 2],
+    deltaPosition: [(0.5 - Math.random()) / 1000, (0.5 - Math.random()) / 1000],
+    deltaRotation: Math.random() / 2,
+    color: [Math.random(), Math.random(), Math.random(), 1.0]
+  });
+}
+console.timeEnd('scene');
 
 var canvas = document.getElementById("c");
 resizeCanvasToDisplaySize(canvas);
@@ -52,14 +90,20 @@ var program = createProgram(gl,
 );
 gl.useProgram(program);
 
+var numAttribs = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
+for (var i=0; i<numAttribs; i++) {
+  var info = gl.getActiveAttrib(program, i);
+  console.log(i, info);
+}
+
 var uniforms = zip([
   'uTime', 'uColor', 'uIntensity', 'uLineWidth', 'uCameraZoom', 'uCameraRotation', 'uCameraOrigin'
 ], name => gl.getUniformLocation(program, name));
 
 setUniforms(uniforms, {
-  uCameraZoom: [0.75],
+  uCameraZoom: [1.0],
   uCameraOrigin: [0, 0],
-  uLineWidth: [0.004],
+  uLineWidth: [0.003],
   uIntensity: [1.0],
   uColor: [0.1, 1.0, 0.1, 1.0],
 });
@@ -69,67 +113,84 @@ gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
 
 var attribsSpec = [
   ['aIdx', 1],
-  ['aStart', 2],
-  ['aEnd', 2],
+  ['aLine', 4],
   ['aTransform', 4],
-  ['aDeltaTransform', 4]
+  ['aDeltaTransform', 4],
+  ['aColor', 4],
 ];
+var vertexSize = attribsSpec.reduce((sum, [name, size]) => sum + size, 0);
 
 var attribs = {};
 var pos = 0;
-var indexSize = attribsSpec.reduce((sum, [name, size]) => sum + size, 0);
 attribsSpec.forEach(([name, size]) => {
   const attrib = attribs[name] = gl.getAttribLocation(program, name);
-  gl.vertexAttribPointer(attrib, size, gl.FLOAT, false, indexSize * 4, pos * 4);
+  gl.vertexAttribPointer(attrib, size, gl.FLOAT, false, vertexSize * 4, pos * 4);
   gl.enableVertexAttribArray(attrib)
   pos += size;
 });
 
-var data = [];
-var dataCount = 0;
-scene.forEach(({
+console.time('allocating buffer');
+const buffer = new Float32Array(scene.reduce((acc, item) =>
+  acc + (item.shape.length - 0.5) * vertexSize * 4, 0));
+console.timeEnd('allocating buffer');
+console.log('buffer alloc', buffer.length);
+
+console.time('building buffer');
+var vertexCount = 0;
+var bufferPos = 0;
+const bufferVertex = (shapeIdx, lineIdx, {
   shape, position, scale=0, rotation=0,
-  deltaPosition=[0.0, 0.0], deltaScale=0.0, deltaRotation=0.0
+  deltaPosition=[0.0, 0.0], deltaScale=0.0, deltaRotation=0.0,
+  color=[1, 1, 1, 1]
 }) => {
-  var toAdd = shape
-    // Connect the points of the shape into lines
-    .slice(2).reduce(
-      (a, p) => a.concat([[a[a.length-1][1], p]]),
-      [[shape[0], shape[1]]]
-    )
-    // Convert lines into buffer chunks to send to the GPU
-    .reduce((acc, line) => {
-      dataCount += 4;
-      var common = [
-        line[0][0], line[0][1], line[1][0], line[1][1],
-        position[0], position[1], scale, rotation,
-        deltaPosition[0], deltaPosition[1], deltaScale, deltaRotation
-      ];
-      return acc.concat(...[0, 1, 2, 3].map(idx => [idx].concat(common)));
-    }, []);
-
-  // Add degenerate triangles between shapes to disconnect them.
-  dataCount += 2;
-  const firstV = toAdd.slice(0, indexSize);
-  const lastV = toAdd.slice(toAdd.length - indexSize, toAdd.length);
-  data = data.concat(firstV.concat(toAdd, lastV));
+  vertexCount++;
+  buffer[bufferPos++] = lineIdx;
+  buffer[bufferPos++] = shape[shapeIdx - 1][0];
+  buffer[bufferPos++] = shape[shapeIdx - 1][1];
+  buffer[bufferPos++] = shape[shapeIdx][0];
+  buffer[bufferPos++] = shape[shapeIdx][1];
+  buffer[bufferPos++] = position[0];
+  buffer[bufferPos++] = position[1];
+  buffer[bufferPos++] = scale;
+  buffer[bufferPos++] = rotation;
+  buffer[bufferPos++] = deltaPosition[0];
+  buffer[bufferPos++] = deltaPosition[1];
+  buffer[bufferPos++] = deltaScale;
+  buffer[bufferPos++] = deltaRotation;
+  buffer[bufferPos++] = color[0];
+  buffer[bufferPos++] = color[1];
+  buffer[bufferPos++] = color[2];
+  buffer[bufferPos++] = color[3];
+};
+scene.forEach(sprite => {
+  bufferVertex(1, 0, sprite);
+  for (let shapeIdx = 1; shapeIdx < sprite.shape.length; shapeIdx += 1) {
+    for (let lineIdx = 0; lineIdx < 4; lineIdx++) {
+      bufferVertex(shapeIdx, lineIdx, sprite);
+    }
+  }
+  bufferVertex(sprite.shape.length - 1, 3, sprite);
 });
-data = new Float32Array(data);
+console.timeEnd('building buffer');
+console.log('buffer used', bufferPos);
 
-gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+console.time('buffering');
+gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
+console.timeEnd('buffering');
 
 var lastTick;
 var currTime = 0;
 function drawTick(ts) {
   if (!lastTick) lastTick = ts;
   currTime += ts - lastTick;
+  if (currTime > 20000) currTime = 0;
   lastTick = ts;
   gl.uniform1f(uniforms.uTime, currTime);
 
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
   gl.clearColor(0, 0, 0, 1.0);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, dataCount);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
 
   window.requestAnimationFrame(drawTick);
 };
@@ -160,6 +221,7 @@ function createShader(gl, type, source) {
     return shader;
   }
 
+  console.log('shader', type, 'failed to compile', gl.getShaderInfoLog(shader));
   gl.deleteShader(shader);
 }
 
@@ -196,7 +258,7 @@ function resizeCanvasToDisplaySize(canvas, multiplier) {
 function shaderVertex() {
   return `
 // see also: http://m1el.github.io/woscope-how/
-precision highp float;
+precision mediump float;
 #define EPS 1E-6
 
 uniform float uTime;
@@ -205,12 +267,14 @@ uniform float uCameraZoom;
 uniform float uCameraRotation;
 uniform vec2 uCameraOrigin;
 
-attribute vec2 aStart, aEnd;
 attribute float aIdx;
+attribute vec4 aLine;
 attribute vec4 aTransform;
 attribute vec4 aDeltaTransform;
+attribute vec4 aColor;
 
 varying vec4 uvl;
+varying vec4 vColor;
 varying float vLen;
 
 void main () {
@@ -244,8 +308,8 @@ void main () {
   );
 
   mat3 mAll = mCameraZoom * mCameraOrigin * mCameraRotation * mPosition * mScale * mRotation;
-  vec2 tStart = (mAll * vec3(aStart, 1)).xy;
-  vec2 tEnd = (mAll * vec3(aEnd, 1)).xy;
+  vec2 tStart = (mAll * vec3(aLine.xy, 1)).xy;
+  vec2 tEnd = (mAll * vec3(aLine.zw, 1)).xy;
 
   float tang;
   vec2 current;
@@ -262,6 +326,8 @@ void main () {
 
   float side = (mod(idx, 2.0)-0.5)*2.0;
   vec2 dir = tEnd-tStart;
+
+  vColor = aColor;
 
   uvl.xy = vec2(tang, side);
   uvl.w = floor(aIdx / 4.0 + 0.5);
@@ -280,9 +346,12 @@ void main () {
 
 function shaderFragment() {
  return `
+precision mediump float;
+varying vec4 vColor;
+
 void main (void)
 {
-    gl_FragColor = vec4(0.5, 1.0, 0.5, 1.0);
+    gl_FragColor = vColor;
 }
-  `;
+`;
 }
