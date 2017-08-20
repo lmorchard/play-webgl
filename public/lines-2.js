@@ -1,215 +1,172 @@
-var shapes = {
-  box: [
-    [-0.25, -0.25],
-    [0.25, -0.25],
-    [0.25, 0.25],
-    [-0.25, 0.25],
-    [-0.25, -0.25]
-  ],
-  star: [
-    [0, 1],
-    [0.25, 0.25],
-    [1, 0],
-    [0.25, -0.25],
-    [0, -1],
-    [-0.25, -0.25],
-    [-1, 0],
-    [-0.25, 0.25],
-    [0, 1]
-  ],
-  plus: [
-    [0, 1],
-    [0.025, 0.025],
-    [1, 0],
-    [0.025, -0.025],
-    [0, -1],
-    [-0.025, -0.025],
-    [-1, 0],
-    [-0.025, 0.025],
-    [0, 1]
-  ],
-  hero: [
-    [-0.75, -0.75],
-    [-0.5, 0.0],
-    [-0.25, 0.5],
-    [0.0, 0.25],
-    [0.25, 0.5],
-    [0.5, 0.0],
-    [0.75, -0.75],
-    [0.25, -0.25],
-    [-0.25, -0.25],
-    [-0.75, -0.75],
-  ],
-  enemy: [
-    [0.0, 1],
-    [-0.75, -1],
-    [0.0, 0.0],
-    [0.75, -1],
-    [0.0, 1]
-  ]
-};
+function init() {
 
-console.time('scene');
-var scene = [
-  { shape: shapes.plus, position: [0, 0], scale: 0.05 },
-  { shape: shapes.plus, position: [-0.5, -0.5], scale: 0.05 },
-  { shape: shapes.plus, position: [ 0.5, -0.5], scale: 0.05 },
-  { shape: shapes.plus, position: [-0.5,  0.5], scale: 0.05 },
-  { shape: shapes.plus, position: [ 0.5,  0.5], scale: 0.05 },
-  { shape: shapes.plus, position: [-1.0, -1.0], scale: 0.05 },
-  { shape: shapes.plus, position: [ 1.0, -1.0], scale: 0.05 },
-  { shape: shapes.plus, position: [-1.0,  1.0], scale: 0.05 },
-  { shape: shapes.plus, position: [ 1.0,  1.0], scale: 0.05 },
-  { shape: shapes.hero, position: [0, 0], scale: 0.125, deltaRotation: 0.002 },
-  { shape: shapes.enemy, position: [0.5, 0.5], scale: 0.125, deltaRotation: -0.001 }
-];
-for (var i=0; i<2000; i++) {
-  scene.push({
-    shape: shapes.star,
-    scale: 0.05,
-    position: [1 - Math.random() * 2, 1 - Math.random() * 2],
-    deltaPosition: [(0.5 - Math.random()) / 1000, (0.5 - Math.random()) / 1000],
-    deltaRotation: Math.random() / 2,
-    color: [Math.random(), Math.random(), Math.random(), 1.0]
-  });
-}
-console.timeEnd('scene');
+  console.time('scene');
+  var shapes = {
+    box: [
+      [-0.25, -0.25], [0.25, -0.25], [0.25, 0.25], [-0.25, 0.25], [-0.25, -0.25]
+    ],
+    star: [
+      [0, 1], [0.25, 0.25], [1, 0], [0.25, -0.25], [0, -1], [-0.25, -0.25],
+      [-1, 0], [-0.25, 0.25], [0, 1]
+    ],
+    plus: [
+      [0, 1], [0.025, 0.025], [1, 0], [0.025, -0.025], [0, -1],
+      [-0.025, -0.025], [-1, 0], [-0.025, 0.025], [0, 1]
+    ],
+    hero: [
+      [-0.75, -0.75], [-0.5, 0.0], [-0.25, 0.5], [0.0, 0.25], [0.25, 0.5],
+      [0.5, 0.0], [0.75, -0.75], [0.25, -0.25], [-0.25, -0.25], [-0.75, -0.75],
+    ],
+    enemy: [
+      [0.0, 1], [-0.75, -1], [0.0, 0.0], [0.75, -1], [0.0, 1]
+    ]
+  };
 
-var canvas = document.getElementById("c");
-resizeCanvasToDisplaySize(canvas);
+  var scene = [
+    { shape: shapes.plus, position: [0, 0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    { shape: shapes.plus, position: [-0.5, -0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    { shape: shapes.plus, position: [ 0.5, -0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    { shape: shapes.plus, position: [-0.5,  0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    { shape: shapes.plus, position: [ 0.5,  0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    { shape: shapes.plus, position: [-1.0, -1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    { shape: shapes.plus, position: [ 1.0, -1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    { shape: shapes.plus, position: [-1.0,  1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    { shape: shapes.plus, position: [ 1.0,  1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    { shape: shapes.hero, position: [0, 0], scale: 0.125, deltaRotation: 0.002 },
+    { shape: shapes.enemy, position: [0.5, 0.5], scale: 0.125, deltaRotation: -0.001 },
+    { shape: shapes.enemy, position: [-0.5, -0.5], scale: 0.125, deltaRotation: -0.001 }
+  ];
 
-var gl = canvas.getContext("webgl", {
-  antialias: true,
-  preserveDrawingBuffer: true,
-  premultipliedAlpha: true
-});
-
-var program = createProgram(gl,
-  createShader(gl, gl.VERTEX_SHADER, shaderVertex()),
-  createShader(gl, gl.FRAGMENT_SHADER, shaderFragment())
-);
-gl.useProgram(program);
-
-var numAttribs = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
-for (var i=0; i<numAttribs; i++) {
-  var info = gl.getActiveAttrib(program, i);
-  console.log(i, info);
-}
-
-var uniforms = zip([
-  'uTime', 'uColor', 'uIntensity', 'uLineWidth', 'uCameraZoom', 'uCameraRotation', 'uCameraOrigin'
-], name => gl.getUniformLocation(program, name));
-
-setUniforms(uniforms, {
-  uCameraZoom: [1.0],
-  uCameraOrigin: [0, 0],
-  uLineWidth: [0.003],
-  uIntensity: [1.0],
-  uColor: [0.1, 1.0, 0.1, 1.0],
-});
-
-var vbo = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-
-var attribsSpec = [
-  ['aIdx', 1],
-  ['aLine', 4],
-  ['aTransform', 4],
-  ['aDeltaTransform', 4],
-  ['aColor', 4],
-];
-var vertexSize = attribsSpec.reduce((sum, [name, size]) => sum + size, 0);
-
-var attribs = {};
-var pos = 0;
-attribsSpec.forEach(([name, size]) => {
-  const attrib = attribs[name] = gl.getAttribLocation(program, name);
-  gl.vertexAttribPointer(attrib, size, gl.FLOAT, false, vertexSize * 4, pos * 4);
-  gl.enableVertexAttribArray(attrib)
-  pos += size;
-});
-
-console.time('allocating buffer');
-const buffer = new Float32Array(scene.reduce((acc, item) =>
-  acc + (item.shape.length - 0.5) * vertexSize * 4, 0));
-console.timeEnd('allocating buffer');
-console.log('buffer alloc', buffer.length);
-
-console.time('building buffer');
-var vertexCount = 0;
-var bufferPos = 0;
-const bufferVertex = (shapeIdx, lineIdx, {
-  shape, position, scale=0, rotation=0,
-  deltaPosition=[0.0, 0.0], deltaScale=0.0, deltaRotation=0.0,
-  color=[1, 1, 1, 1]
-}) => {
-  vertexCount++;
-  buffer[bufferPos++] = lineIdx;
-  buffer[bufferPos++] = shape[shapeIdx - 1][0];
-  buffer[bufferPos++] = shape[shapeIdx - 1][1];
-  buffer[bufferPos++] = shape[shapeIdx][0];
-  buffer[bufferPos++] = shape[shapeIdx][1];
-  buffer[bufferPos++] = position[0];
-  buffer[bufferPos++] = position[1];
-  buffer[bufferPos++] = scale;
-  buffer[bufferPos++] = rotation;
-  buffer[bufferPos++] = deltaPosition[0];
-  buffer[bufferPos++] = deltaPosition[1];
-  buffer[bufferPos++] = deltaScale;
-  buffer[bufferPos++] = deltaRotation;
-  buffer[bufferPos++] = color[0];
-  buffer[bufferPos++] = color[1];
-  buffer[bufferPos++] = color[2];
-  buffer[bufferPos++] = color[3];
-};
-scene.forEach(sprite => {
-  bufferVertex(1, 0, sprite);
-  for (let shapeIdx = 1; shapeIdx < sprite.shape.length; shapeIdx += 1) {
-    for (let lineIdx = 0; lineIdx < 4; lineIdx++) {
-      bufferVertex(shapeIdx, lineIdx, sprite);
-    }
+  for (var i=0; i<200; i++) {
+    scene.push({
+      shape: shapes.star,
+      scale: 0.05,
+      position: [1 - Math.random() * 2, 1 - Math.random() * 2],
+      deltaPosition: [(0.5 - Math.random()) / 1000, (0.5 - Math.random()) / 1000],
+      deltaRotation: Math.random() / 2,
+      color: [Math.random(), Math.random(), Math.random(), 1.0]
+    });
   }
-  bufferVertex(sprite.shape.length - 1, 3, sprite);
-});
-console.timeEnd('building buffer');
-console.log('buffer used', bufferPos);
+  console.timeEnd('scene');
 
-console.time('buffering');
-gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
-console.timeEnd('buffering');
+  console.time('initWebGL');
+  var canvas = document.getElementById("c");
+  const { gl, uniforms, attribs, vertexSize } = initWebGL(canvas);
+  console.timeEnd('initWebGL');
 
-var lastTick;
-var currTime = 0;
-function drawTick(ts) {
-  if (!lastTick) lastTick = ts;
-  currTime += ts - lastTick;
-  if (currTime > 20000) currTime = 0;
-  lastTick = ts;
-  gl.uniform1f(uniforms.uTime, currTime);
+  console.time('allocating buffer');
+  const buffer = allocateBufferForScene(scene, vertexSize);
+  console.timeEnd('allocating buffer');
 
-  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-  gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
-  gl.clearColor(0, 0, 0, 1.0);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+  console.time('building buffer from scene');
+  var vertexCount = fillBufferFromScene(scene, buffer);
+  console.timeEnd('building buffer from scene');
 
+  console.time('set initial uniforms');
+  setUniforms(gl, uniforms, {
+    uCameraZoom: [1.0],
+    uCameraOrigin: [0, 0],
+    uLineWidth: [0.003],
+  });
+  console.timeEnd('set initial uniforms');
+
+  console.time('buffering scene');
+  gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
+  console.timeEnd('buffering scene');
+
+  let lastTick;
+  let currTime = 0;
+  function drawTick(ts) {
+    if (!lastTick) lastTick = ts;
+    currTime += ts - lastTick;
+    lastTick = ts;
+
+    if (currTime > 10000) currTime = 0;
+
+    gl.uniform1f(uniforms.uTime, currTime);
+
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.clearColor(0, 0, 0, 1.0);
+    gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+
+    window.requestAnimationFrame(drawTick);
+  };
   window.requestAnimationFrame(drawTick);
+}
+
+/* ---------------------------------------------------------------------- */
+
+// https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Constants
+const TYPE_SIZES = {
+  0x1406: 1, // FLOAT
+  0x8B50: 2, // FLOAT_VEC2
+  0x8B51: 3, // FLOAT_VEC3
+  0x8B52: 4  // FLOAT_VEC4
 };
-window.requestAnimationFrame(drawTick);
 
-function zip(keys, fn) {
-  const out = {};
-  keys.forEach((key, idx) => out[key] = fn(key, idx));
-  return out;
+function initWebGL(canvas) {
+
+  resizeCanvasToDisplaySize(canvas);
+
+  var gl = canvas.getContext("webgl", {
+    antialias: true,
+    preserveDrawingBuffer: true,
+    premultipliedAlpha: true
+  });
+
+  var program = createProgram(gl,
+    createShader(gl, gl.VERTEX_SHADER, shaderVertex()),
+    createShader(gl, gl.FRAGMENT_SHADER, shaderFragment())
+  );
+  gl.useProgram(program);
+
+  // Set up for data buffer
+  var vbo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+
+  // First pass through attributes to count total vertex size and index by name
+  var numAttribs = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
+  var attribs = {};
+  var vertexSize = 0;
+  for (var i = 0; i < numAttribs; i++) {
+    var info = gl.getActiveAttrib(program, i);
+    var size = TYPE_SIZES[info.type];
+    vertexSize += size;
+    attribs[info.name] = i;
+  }
+
+  // Second pass through attributes to set up attribute pointers into the buffer
+  var pos = 0;
+  for (var i = 0; i < numAttribs; i++) {
+    var info = gl.getActiveAttrib(program, i);
+    var size = TYPE_SIZES[info.type];
+    gl.vertexAttribPointer(i, size, gl.FLOAT, false, vertexSize * 4, pos * 4);
+    gl.enableVertexAttribArray(i)
+    pos += size;
+  }
+
+  // Index uniform locations by name
+  var uniforms = {};
+  var numUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < numUniforms; i++) {
+    const info = gl.getActiveUniform(program, i);
+    uniforms[info.name] = gl.getUniformLocation(program, info.name);
+  }
+
+  return { gl, uniforms, attribs, vertexSize };
 }
 
-function setUniforms(uniforms, data) {
-  Object.keys(data).forEach(key =>
-    gl[`uniform${data[key].length}f`]
-      .call(gl, uniforms[key], ...data[key]));
-}
-
-function getElementText(id) {
-  return document.getElementById(id).text;
+function resizeCanvasToDisplaySize(canvas, multiplier) {
+  multiplier = multiplier || 1;
+  var width  = canvas.clientWidth  * multiplier | 0;
+  var height = canvas.clientHeight * multiplier | 0;
+  if (canvas.width !== width ||  canvas.height !== height) {
+    canvas.width  = width;
+    canvas.height = height;
+    return true;
+  }
+  return false;
 }
 
 function createShader(gl, type, source) {
@@ -239,20 +196,65 @@ function createProgram(gl, vertexShader, fragmentShader) {
   gl.deleteProgram(program);
 }
 
-function randomInt(range) {
-  return Math.floor(Math.random() * range);
+function allocateBufferForScene(scene, vertexSize) {
+  const bufferSize = scene.reduce((acc, item) =>
+    acc + (item.shape.length - 0.5) * vertexSize * 4, 0);
+  const buffer = new Float32Array(bufferSize);
+  console.log('buffer size', bufferSize);
+  return buffer;
 }
 
-function resizeCanvasToDisplaySize(canvas, multiplier) {
-  multiplier = multiplier || 1;
-  var width  = canvas.clientWidth  * multiplier | 0;
-  var height = canvas.clientHeight * multiplier | 0;
-  if (canvas.width !== width ||  canvas.height !== height) {
-    canvas.width  = width;
-    canvas.height = height;
-    return true;
+function fillBufferFromScene(scene, buffer) {
+  let vertexCount = 0;
+  let bufferPos = 0;
+  let sprite, shape, position, scale, rotation,
+      deltaPosition, deltaScale, deltaRotation, color;
+
+  function bufferVertex(shapeIdx, lineIdx) {
+    vertexCount++;
+    buffer[bufferPos++] = lineIdx;
+    buffer[bufferPos++] = shape[shapeIdx - 1][0];
+    buffer[bufferPos++] = shape[shapeIdx - 1][1];
+    buffer[bufferPos++] = shape[shapeIdx][0];
+    buffer[bufferPos++] = shape[shapeIdx][1];
+    buffer[bufferPos++] = position[0];
+    buffer[bufferPos++] = position[1];
+    buffer[bufferPos++] = scale;
+    buffer[bufferPos++] = rotation;
+    buffer[bufferPos++] = deltaPosition[0];
+    buffer[bufferPos++] = deltaPosition[1];
+    buffer[bufferPos++] = deltaScale;
+    buffer[bufferPos++] = deltaRotation;
+    buffer[bufferPos++] = color[0];
+    buffer[bufferPos++] = color[1];
+    buffer[bufferPos++] = color[2];
+    buffer[bufferPos++] = color[3];
   }
-  return false;
+
+  for (let spriteIdx = 0; spriteIdx < scene.length; spriteIdx++) {
+    sprite = scene[spriteIdx];
+    ({
+      shape, position=[0.0, 0.0], scale=0, rotation=0,
+      deltaPosition=[0.0, 0.0], deltaScale=0.0, deltaRotation=0.0,
+      color=[1, 1, 1, 1]
+    } = sprite);
+    bufferVertex(1, 0);
+    for (let shapeIdx = 1; shapeIdx < shape.length; shapeIdx += 1) {
+      bufferVertex(shapeIdx, 0);
+      bufferVertex(shapeIdx, 1);
+      bufferVertex(shapeIdx, 2);
+      bufferVertex(shapeIdx, 3);
+    }
+    bufferVertex(shape.length - 1, 3);
+  }
+
+  return vertexCount;
+}
+
+function setUniforms(gl, uniforms, data) {
+  Object.keys(data).forEach(key =>
+    gl[`uniform${data[key].length}f`]
+      .call(gl, uniforms[key], ...data[key]));
 }
 
 function shaderVertex() {
@@ -286,9 +288,6 @@ void main () {
   mat3 mCameraOrigin = mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, uCameraOrigin.x, uCameraOrigin.y, 1.0);
   mat3 mCameraZoom = mat3(uCameraZoom, 0.0, 0.0, 0.0, uCameraZoom, 0.0, 0.0, 0.0, 1.0);
 
-  float dr = 0.001;
-  float localRotation = dr * uTime;
-
   c = cos(aTransform.w + (aDeltaTransform.w * uTime));
   s = sin(aTransform.w + (aDeltaTransform.w * uTime));
   mat3 mRotation = mat3(
@@ -314,9 +313,7 @@ void main () {
   float tang;
   vec2 current;
   float idx = aIdx;
-  if (idx == -1.0) {
-    tang = 0.0;
-  } else if (idx >= 2.0) {
+  if (idx >= 2.0) {
     current = tEnd;
     tang = 1.0;
   } else {
@@ -355,3 +352,5 @@ void main (void)
 }
 `;
 }
+
+init();
