@@ -22,30 +22,32 @@ function init() {
     ]
   };
 
-  var scene = [
-    { shape: shapes.plus, position: [0, 0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    { shape: shapes.plus, position: [-0.5, -0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    { shape: shapes.plus, position: [ 0.5, -0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    { shape: shapes.plus, position: [-0.5,  0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    { shape: shapes.plus, position: [ 0.5,  0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    { shape: shapes.plus, position: [-1.0, -1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    { shape: shapes.plus, position: [ 1.0, -1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    { shape: shapes.plus, position: [-1.0,  1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    { shape: shapes.plus, position: [ 1.0,  1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    { shape: shapes.hero, position: [0, 0], scale: 0.125, deltaRotation: 0.002 },
-    { shape: shapes.enemy, position: [0.5, 0.5], scale: 0.125, deltaRotation: -0.001 },
-    { shape: shapes.enemy, position: [-0.5, -0.5], scale: 0.125, deltaRotation: -0.001 }
-  ];
+  var scene = {
+    hero: { shape: shapes.hero, position: [0, 0], scale: 0.125, deltaRotation: 0.002 },
+    a001: { shape: shapes.plus, position: [0, 0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    a002: { shape: shapes.plus, position: [-0.5, -0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    a003: { shape: shapes.plus, position: [ 0.5, -0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    a004: { shape: shapes.plus, position: [-0.5,  0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    a005: { shape: shapes.plus, position: [ 0.5,  0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    a006: { shape: shapes.plus, position: [-1.0, -1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    a007: { shape: shapes.plus, position: [ 1.0, -1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    a008: { shape: shapes.plus, position: [-1.0,  1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    a009: { shape: shapes.plus, position: [ 1.0,  1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
+    a011: { shape: shapes.enemy, position: [0.5, 0.5], scale: 0.125, deltaRotation: -0.001 },
+    a012: { shape: shapes.enemy, position: [-0.5, -0.5], scale: 0.125, deltaRotation: -0.001 },
+    a013: { shape: shapes.enemy, position: [0.5, -0.5], scale: 0.125, deltaRotation: 0.001 },
+    a014: { shape: shapes.enemy, position: [-0.5, 0.5], scale: 0.125, deltaRotation: 0.001 },
+  };
 
   for (var i=0; i<200; i++) {
-    scene.push({
+    scene[`b${i}`] = {
       shape: shapes.star,
       scale: 0.05,
       position: [1 - Math.random() * 2, 1 - Math.random() * 2],
       deltaPosition: [(0.5 - Math.random()) / 1000, (0.5 - Math.random()) / 1000],
       deltaRotation: Math.random() / 2,
       color: [Math.random(), Math.random(), Math.random(), 1.0]
-    });
+    };
   }
   console.timeEnd('scene');
 
@@ -53,14 +55,6 @@ function init() {
   var canvas = document.getElementById("c");
   const { gl, uniforms, attribs, vertexSize } = initWebGL(canvas);
   console.timeEnd('initWebGL');
-
-  console.time('allocating buffer');
-  const buffer = allocateBufferForScene(scene, vertexSize);
-  console.timeEnd('allocating buffer');
-
-  console.time('building buffer from scene');
-  var vertexCount = fillBufferFromScene(scene, buffer);
-  console.timeEnd('building buffer from scene');
 
   console.time('set initial uniforms');
   setUniforms(gl, uniforms, {
@@ -70,21 +64,30 @@ function init() {
   });
   console.timeEnd('set initial uniforms');
 
-  console.time('buffering scene');
-  gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
-  console.timeEnd('buffering scene');
+  let buffer = new Float32Array(100000);
 
-  let lastTick;
-  let currTime = 0;
+  let lastDrawTick;
+  let currDrawTime = 0;
+
   function drawTick(ts) {
-    if (!lastTick) lastTick = ts;
-    currTime += ts - lastTick;
-    lastTick = ts;
+    if (!lastDrawTick) lastDrawTick = ts;
+    currDrawTime += ts - lastDrawTick;
+    lastDrawTick = ts;
 
-    if (currTime > 10000) currTime = 0;
+    if (currDrawTime > 10000) currDrawTime = 0;
 
-    gl.uniform1f(uniforms.uTime, currTime);
+    gl.uniform1f(uniforms.uTime, currDrawTime);
 
+    // Re-allocate larger buffer if current is too small for the scene.
+    const bufferSize = calculateBufferSizeForScene(scene, vertexSize);
+    if (bufferSize > buffer.length) {
+      const oldSize = buffer.length;
+      const newSize = Math.max(bufferSize * 1.5, buffer.length * 2);
+      buffer = new Float32Array(newSize);
+    }
+
+    var vertexCount = fillBufferFromScene(scene, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clearColor(0, 0, 0, 1.0);
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
@@ -196,19 +199,20 @@ function createProgram(gl, vertexShader, fragmentShader) {
   gl.deleteProgram(program);
 }
 
-function allocateBufferForScene(scene, vertexSize) {
-  const bufferSize = scene.reduce((acc, item) =>
+function calculateBufferSizeForScene(scene, vertexSize) {
+  return Object.values(scene).reduce((acc, item) =>
     acc + (item.shape.length - 0.5) * vertexSize * 4, 0);
-  const buffer = new Float32Array(bufferSize);
-  console.log('buffer size', bufferSize);
-  return buffer;
 }
 
 function fillBufferFromScene(scene, buffer) {
   let vertexCount = 0;
   let bufferPos = 0;
-  let sprite, shape, position, scale, rotation,
+  let shape, position, scale, rotation,
       deltaPosition, deltaScale, deltaRotation, color;
+
+  const sceneKeys = Object.keys(scene);
+  sceneKeys.sort();
+  const sceneItems = sceneKeys.map(key => scene[key]);
 
   function bufferVertex(shapeIdx, lineIdx) {
     vertexCount++;
@@ -231,13 +235,12 @@ function fillBufferFromScene(scene, buffer) {
     buffer[bufferPos++] = color[3];
   }
 
-  for (let spriteIdx = 0; spriteIdx < scene.length; spriteIdx++) {
-    sprite = scene[spriteIdx];
+  for (let spriteIdx = 0; spriteIdx < sceneItems.length; spriteIdx++) {
     ({
       shape, position=[0.0, 0.0], scale=0, rotation=0,
       deltaPosition=[0.0, 0.0], deltaScale=0.0, deltaRotation=0.0,
       color=[1, 1, 1, 1]
-    } = sprite);
+    } = sceneItems[spriteIdx]);
     bufferVertex(1, 0);
     for (let shapeIdx = 1; shapeIdx < shape.length; shapeIdx += 1) {
       bufferVertex(shapeIdx, 0);
