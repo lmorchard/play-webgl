@@ -23,30 +23,30 @@ function init() {
   };
 
   var scene = {
-    hero: { shape: shapes.hero, position: [0, 0], scale: 0.125, deltaRotation: 0.002 },
-    a001: { shape: shapes.plus, position: [0, 0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    a002: { shape: shapes.plus, position: [-0.5, -0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    a003: { shape: shapes.plus, position: [ 0.5, -0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    a004: { shape: shapes.plus, position: [-0.5,  0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    a005: { shape: shapes.plus, position: [ 0.5,  0.5], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    a006: { shape: shapes.plus, position: [-1.0, -1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    a007: { shape: shapes.plus, position: [ 1.0, -1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    a008: { shape: shapes.plus, position: [-1.0,  1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    a009: { shape: shapes.plus, position: [ 1.0,  1.0], scale: 0.05, color: [0.3, 0.3, 0.3, 1.0] },
-    a011: { shape: shapes.enemy, position: [0.5, 0.5], scale: 0.125, deltaRotation: -0.001 },
-    a012: { shape: shapes.enemy, position: [-0.5, -0.5], scale: 0.125, deltaRotation: -0.001 },
-    a013: { shape: shapes.enemy, position: [0.5, -0.5], scale: 0.125, deltaRotation: 0.001 },
-    a014: { shape: shapes.enemy, position: [-0.5, 0.5], scale: 0.125, deltaRotation: 0.001 },
+    hero: { shape: shapes.hero, position: [0, 0], scale: 100, deltaRotation: 0.002 },
+    a001: { shape: shapes.plus, position: [0, 0], scale: 25, color: [0.3, 0.3, 0.3, 1.0] },
+    a002: { shape: shapes.plus, position: [-250, -250], scale: 25, color: [0.3, 0.3, 0.3, 500] },
+    a003: { shape: shapes.plus, position: [ 250, -250], scale: 25, color: [0.3, 0.3, 0.3, 500] },
+    a004: { shape: shapes.plus, position: [-250,  250], scale: 25, color: [0.3, 0.3, 0.3, 500] },
+    a250: { shape: shapes.plus, position: [ 250,  250], scale: 25, color: [0.3, 0.3, 0.3, 500] },
+    a006: { shape: shapes.plus, position: [-500, -500], scale: 25, color: [0.3, 0.3, 0.3, 500] },
+    a007: { shape: shapes.plus, position: [ 500, -500], scale: 25, color: [0.3, 0.3, 0.3, 500] },
+    a008: { shape: shapes.plus, position: [-500,  500], scale: 25, color: [0.3, 0.3, 0.3, 500] },
+    a009: { shape: shapes.plus, position: [ 500,  500], scale: 25, color: [0.3, 0.3, 0.3, 500] },
+    a011: { shape: shapes.enemy, position: [250, 250], scale: 50, deltaRotation: -0.001 },
+    a012: { shape: shapes.enemy, position: [-250, -250], scale: 50, deltaRotation: -0.001 },
+    a013: { shape: shapes.enemy, position: [250, -250], scale: 50, deltaRotation: 0.001 },
+    a014: { shape: shapes.enemy, position: [-250, 250], scale: 50, deltaRotation: 0.001 },
   };
 
-  for (var i=0; i<200; i++) {
+  for (var i=0; i<50; i++) {
     scene[`b${i}`] = {
       shape: shapes.star,
-      scale: 0.05,
-      position: [1 - Math.random() * 2, 1 - Math.random() * 2],
-      deltaPosition: [(0.5 - Math.random()) / 1000, (0.5 - Math.random()) / 1000],
+      scale: 25,
+      position: [(1000 * Math.random()) - 500, (1000 * Math.random()) - 500],
+      deltaPosition: [(Math.random() * 1000 - 500) / 1000, (Math.random() * 1000 - 500) / 1000],
       deltaRotation: Math.random() / 2,
-      color: [Math.random(), Math.random(), Math.random(), 1.0]
+      color: [Math.random(), Math.random(), Math.random(), Math.random()]
     };
   }
   console.timeEnd('scene');
@@ -54,6 +54,7 @@ function init() {
   console.time('initWebGL');
   var canvas = document.getElementById("c");
   const { gl, uniforms, attribs, vertexSize } = initWebGL(canvas);
+  window.gl = gl;
   console.timeEnd('initWebGL');
 
   console.time('set initial uniforms');
@@ -74,9 +75,13 @@ function init() {
     currDrawTime += ts - lastDrawTick;
     lastDrawTick = ts;
 
-    if (currDrawTime > 10000) currDrawTime = 0;
+    if (currDrawTime > 15000) currDrawTime = 0;
 
     gl.uniform1f(uniforms.uTime, currDrawTime);
+    setUniforms(gl, uniforms, {
+      uTime: [currDrawTime],
+      uViewportSize: [canvas.clientWidth, canvas.clientHeight]
+    });
 
     // Re-allocate larger buffer if current is too small for the scene.
     const bufferSize = calculateBufferSizeForScene(scene, vertexSize);
@@ -88,6 +93,7 @@ function init() {
 
     var vertexCount = fillBufferFromScene(scene, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
+    resizeCanvasToDisplaySize(canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clearColor(0, 0, 0, 1.0);
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
@@ -271,6 +277,7 @@ uniform float uLineWidth;
 uniform float uCameraZoom;
 uniform float uCameraRotation;
 uniform vec2 uCameraOrigin;
+uniform vec2 uViewportSize;
 
 attribute float aIdx;
 attribute vec4 aLine;
@@ -284,6 +291,21 @@ varying float vLen;
 
 void main () {
   float c, s;
+
+  vec2 viewportRatio;
+  if (uViewportSize.x > uViewportSize.y) {
+    viewportRatio.x = uViewportSize.y / uViewportSize.x;
+    viewportRatio.y = 1.0;
+  } else {
+    viewportRatio.x = 1.0;
+    viewportRatio.y = uViewportSize.x / uViewportSize.y;
+  }
+
+  mat3 mViewportToClipSpace = mat3(
+    0.002 * viewportRatio.x, 0, 0,
+    0, 0.002 * viewportRatio.y, 0,
+    0, 0, 0
+  );
 
   c = cos(uCameraRotation);
   s = sin(uCameraRotation);
@@ -309,7 +331,7 @@ void main () {
     0.0, 0.0, 1.0
   );
 
-  mat3 mAll = mCameraZoom * mCameraOrigin * mCameraRotation * mPosition * mScale * mRotation;
+  mat3 mAll = mViewportToClipSpace * mCameraZoom * mCameraOrigin * mCameraRotation * mPosition * mScale * mRotation;
   vec2 tStart = (mAll * vec3(aLine.xy, 1)).xy;
   vec2 tEnd = (mAll * vec3(aLine.zw, 1)).xy;
 
